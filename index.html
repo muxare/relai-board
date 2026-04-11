@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RelaI Board</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%231E3A5F'/><text x='4' y='22' font-family='system-ui' font-size='16' font-weight='700' fill='white'>R</text><circle cx='17' cy='17' r='2' fill='%233B82F6'/><text x='21' y='22' font-family='system-ui' font-size='16' font-weight='300' fill='%233B82F6'>I</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f8f9fb; --bg3: #f0f2f5; --fg: #1a1a2e; --fg2: #555770; --fg3: #8e90a6;
+  --border: #e2e4ea; --accent: #2563eb; --accent-light: #dbeafe; --accent-dark: #1d4ed8;
+  --green: #16a34a; --green-light: #dcfce7; --purple: #7c3aed; --purple-light: #f3e8ff;
+  --red: #dc2626; --red-light: #fee2e2; --orange: #ea580c; --orange-light: #ffedd5;
+  --yellow: #ca8a04; --yellow-light: #fef9c3;
+  --font: 'DM Sans', system-ui, sans-serif; --mono: 'DM Mono', monospace;
+  --radius: 8px; --radius-lg: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1118; --bg2: #1a1d2b; --bg3: #252838; --fg: #e8eaf0; --fg2: #a0a3b5; --fg3: #6b6e82;
+    --border: #2d3044; --accent: #3b82f6; --accent-light: #1e3a5f; --accent-dark: #60a5fa;
+    --green-light: #0f2918; --purple-light: #1f1535; --red-light: #2d1010; --orange-light: #2d1a08; --yellow-light: #2d2508;
+  }
+}
+body { font-family: var(--font); background: var(--bg); color: var(--fg); min-height: 100vh; }
+button { font-family: var(--font); cursor: pointer; }
+input, textarea, select { font-family: var(--font); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.app { display: flex; flex-direction: column; height: 100vh; }
+.topbar {
+  display: flex; align-items: center; gap: 12px; padding: 10px 20px;
+  border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; z-index: 10;
+}
+.topbar-logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; }
+.topbar-logo span:last-child { color: var(--accent); font-weight: 300; }
+.topbar-repo { font-family: var(--mono); font-size: 13px; color: var(--fg2); background: var(--bg2); padding: 4px 10px; border-radius: 6px; border: 1px solid var(--border); }
+.topbar-spacer { flex: 1; }
+.topbar-stats { display: flex; gap: 10px; font-size: 12px; font-family: var(--mono); color: var(--fg3); }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: var(--radius);
+  font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--bg); color: var(--fg);
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg2); }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-dark); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-danger { color: var(--red); border-color: var(--red); }
+.btn-danger:hover { background: var(--red-light); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; padding: 0 20px; }
+.tab {
+  padding: 10px 18px; font-size: 13px; font-weight: 500; border: none; background: none; color: var(--fg3);
+  border-bottom: 2px solid transparent; cursor: pointer; transition: all 0.15s;
+}
+.tab:hover { color: var(--fg2); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+.main { flex: 1; overflow-y: auto; }
+.panel { padding: 20px; max-width: 960px; margin: 0 auto; }
+
+/* Connect screen */
+.connect-screen { display: flex; align-items: center; justify-content: center; height: 100%; }
+.connect-card { width: 420px; padding: 32px; background: var(--bg2); border-radius: var(--radius-lg); border: 1px solid var(--border); }
+.connect-card h2 { font-size: 20px; margin-bottom: 4px; }
+.connect-card p { font-size: 13px; color: var(--fg2); margin-bottom: 20px; line-height: 1.5; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: var(--fg2); margin-bottom: 4px; }
+.field input { width: 100%; padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg); color: var(--fg); font-size: 14px; font-family: var(--mono); outline: none; }
+.field input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+.field small { font-size: 11px; color: var(--fg3); margin-top: 3px; display: block; }
+
+/* Tree */
+.tree-node { border-bottom: 1px solid var(--border); }
+.tree-row {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; cursor: pointer; transition: background 0.1s;
+}
+.tree-row:hover { background: var(--bg2); }
+.tree-toggle { width: 16px; text-align: center; color: var(--fg3); font-size: 11px; margin-top: 3px; flex-shrink: 0; }
+.tree-content { flex: 1; min-width: 0; }
+.tree-title { font-size: 13px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tree-body { font-size: 12px; color: var(--fg2); margin-top: 3px; line-height: 1.5; }
+.tree-meta { font-size: 11px; font-family: var(--mono); color: var(--fg3); margin-top: 2px; }
+.tree-type { font-size: 11px; font-family: var(--mono); color: var(--fg3); flex-shrink: 0; margin-top: 3px; }
+.tree-actions { display: flex; gap: 4px; flex-shrink: 0; margin-top: 2px; opacity: 0; transition: opacity 0.15s; }
+.tree-row:hover .tree-actions { opacity: 1; }
+
+/* Labels */
+.pill {
+  display: inline-block; padding: 1px 8px; border-radius: 12px; font-size: 11px;
+  font-family: var(--mono); font-weight: 500; line-height: 18px;
+}
+
+/* Editor */
+.editor-area {
+  width: 100%; min-height: 400px; padding: 16px; border-radius: var(--radius); border: 1px solid var(--border);
+  background: var(--bg); color: var(--fg); font-family: var(--mono); font-size: 13px; line-height: 1.6;
+  resize: vertical; outline: none; tab-size: 2;
+}
+.editor-area:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-light); }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--bg); border-radius: var(--radius-lg); border: 1px solid var(--border); width: 560px; max-height: 80vh; overflow-y: auto; padding: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+.modal h3 { font-size: 16px; margin-bottom: 16px; }
+
+/* Progress */
+.progress-bar { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width 0.2s; }
+
+/* Status badge */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-family: var(--mono); font-weight: 500;
+}
+.status-open { background: var(--green-light); color: var(--green); }
+.status-closed { background: var(--purple-light); color: var(--purple); }
+.status-synced { background: var(--green-light); color: var(--green); }
+.status-new { background: var(--yellow-light); color: var(--yellow); }
+.status-modified { background: var(--orange-light); color: var(--orange); }
+
+/* Responsive */
+@media (max-width: 640px) {
+  .topbar { padding: 8px 12px; gap: 8px; }
+  .topbar-stats { display: none; }
+  .panel { padding: 12px; }
+  .tabs { padding: 0 12px; }
+  .tab { padding: 8px 12px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://esm.sh/react@18.3.1?bundle" type="module"></script>
+<script src="https://esm.sh/react-dom@18.3.1/client?bundle" type="module"></script>
+<script type="module">
+import React from 'https://esm.sh/react@18.3.1?bundle';
+import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client?bundle';
+const { useState, useEffect, useCallback, useMemo, useRef, createElement: h, Fragment } = React;
+
+// ── GitHub API helper ──
+class GitHubAPI {
+  constructor(token, repo) { this.token = token; this.repo = repo; }
+  get headers() { return { Authorization: `Bearer ${this.token}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' }; }
+  get base() { return `https://api.github.com/repos/${this.repo}`; }
+
+  async fetchAll(endpoint) {
+    let items = [], page = 1;
+    while (true) {
+      const sep = endpoint.includes('?') ? '&' : '?';
+      const res = await fetch(`${this.base}${endpoint}${sep}per_page=100&page=${page}`, { headers: this.headers });
+      if (!res.ok) throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      items = items.concat(data);
+      if (data.length < 100) break;
+      page++;
+    }
+    return items;
+  }
+
+  async getIssues() { return this.fetchAll('/issues?state=all&sort=created&direction=asc'); }
+  async getLabels() { return this.fetchAll('/labels'); }
+  async getMilestones() { return this.fetchAll('/milestones?state=all'); }
+
+  async createLabel(name, color) {
+    const res = await fetch(`${this.base}/labels`, { method: 'POST', headers: this.headers, body: JSON.stringify({ name, color }) });
+    return res.json();
+  }
+
+  async createMilestone(title) {
+    const res = await fetch(`${this.base}/milestones`, { method: 'POST', headers: this.headers, body: JSON.stringify({ title }) });
+    return res.json();
+  }
+
+  async createIssue(title, body, labels, milestone) {
+    const payload = { title, body, labels };
+    if (milestone) payload.milestone = milestone;
+    const res = await fetch(`${this.base}/issues`, { method: 'POST', headers: this.headers, body: JSON.stringify(payload) });
+    if (!res.ok) throw new Error(`Create failed: ${res.status}`);
+    return res.json();
+  }
+
+  async updateIssue(number, updates) {
+    const res = await fetch(`${this.base}/issues/${number}`, { method: 'PATCH', headers: this.headers, body: JSON.stringify(updates) });
+    if (!res.ok) throw new Error(`Update failed: ${res.status}`);
+    return res.json();
+  }
+
+  async verifyAccess() {
+    const res = await fetch(this.base, { headers: this.headers });
+    if (!res.ok) throw new Error(`Cannot access ${this.repo}`);
+    return res.json();
+  }
+}
+
+// ── Label colors ──
+const LABEL_STYLES = {
+  epic: { bg: 'var(--purple-light)', fg: 'var(--purple)', ghColor: '6F42C1' },
+  feature: { bg: 'var(--green-light)', fg: 'var(--green)', ghColor: '0E8A16' },
+  story: { bg: 'var(--accent-light)', fg: 'var(--accent)', ghColor: '1D76DB' },
+  'phase-1': { bg: 'var(--yellow-light)', fg: 'var(--yellow)', ghColor: 'FBCA04' },
+  'phase-2': { bg: 'var(--orange-light)', fg: 'var(--orange)', ghColor: 'F9A825' },
+  'phase-3': { bg: 'var(--red-light)', fg: 'var(--red)', ghColor: 'E65100' },
+  'phase-4': { bg: 'var(--purple-light)', fg: 'var(--purple)', ghColor: 'B71C1C' },
+  A1: { bg: 'var(--accent-light)', fg: 'var(--accent)', ghColor: 'C5DEF5' },
+  A2: { bg: 'var(--yellow-light)', fg: 'var(--yellow)', ghColor: 'FEF2C0' },
+  A3: { bg: 'var(--red-light)', fg: 'var(--red)', ghColor: 'F9D0C4' },
+  backend: { bg: 'var(--purple-light)', fg: 'var(--purple)', ghColor: 'D4C5F9' },
+  frontend: { bg: 'var(--accent-light)', fg: 'var(--accent)', ghColor: 'BFD4F2' },
+  ai: { bg: 'var(--red-light)', fg: 'var(--red)', ghColor: 'F7C6C7' },
+  infra: { bg: 'var(--green-light)', fg: 'var(--green)', ghColor: 'D4E4BC' },
+};
+
+function getLabelStyle(name) {
+  return LABEL_STYLES[name] || { bg: 'var(--bg3)', fg: 'var(--fg2)', ghColor: 'EDEDED' };
+}
+
+// ── Parse issues into tree ──
+function parseIssuesToTree(issues) {
+  const parentMap = {};
+  const issueMap = {};
+
+  for (const issue of issues) {
+    if (issue.pull_request) continue;
+    const labels = issue.labels.map(l => l.name);
+    const type = labels.includes('epic') ? 'epic' : labels.includes('feature') ? 'feature' : labels.includes('story') ? 'story' : 'other';
+    const parentMatch = (issue.body || '').match(/Parent:\s*#(\d+)/i);
+    const parentNumber = parentMatch ? parseInt(parentMatch[1]) : null;
+    const node = { ...issue, type, labelNames: labels, parentNumber, children: [], _synced: true };
+    issueMap[issue.number] = node;
+    if (parentNumber) {
+      if (!parentMap[parentNumber]) parentMap[parentNumber] = [];
+      parentMap[parentNumber].push(node);
+    }
+  }
+
+  for (const [parentNum, children] of Object.entries(parentMap)) {
+    if (issueMap[parentNum]) issueMap[parentNum].children = children;
+  }
+
+  const roots = Object.values(issueMap).filter(n => !n.parentNumber || !issueMap[n.parentNumber]);
+  roots.sort((a, b) => a.number - b.number);
+  return roots;
+}
+
+// ── Parse markdown to items ──
+function parseMarkdown(text) {
+  const lines = text.split('\n');
+  const items = [];
+  let current = null, bodyLines = [], inBody = false;
+
+  function flush() {
+    if (current) { current.body = bodyLines.join('\n').trim(); items.push(current); }
+    current = null; bodyLines = []; inBody = false;
+  }
+
+  for (const line of lines) {
+    const eM = line.match(/^#\s+Epic:\s*(.+)/);
+    const fM = line.match(/^##\s+Feature:\s*(.+)/);
+    const sM = line.match(/^###\s+Story:\s*(.+)/);
+    const lM = line.match(/^labels:\s*(.+)/);
+    const mM = line.match(/^milestone:\s*(.+)/);
+    const sep = line.trim() === '---';
+
+    if (eM || fM || sM) {
+      flush();
+      current = { type: eM ? 'epic' : fM ? 'feature' : 'story', title: (eM||fM||sM)[1].trim(), labels: [], milestone: '', body: '' };
+      inBody = false;
+    } else if (current && !inBody && lM) {
+      current.labels = lM[1].split(',').map(l => l.trim()).filter(Boolean);
+    } else if (current && !inBody && mM) {
+      current.milestone = mM[1].trim();
+    } else if (current && sep && !inBody) {
+      inBody = true;
+    } else if (current && inBody) {
+      bodyLines.push(line);
+    }
+  }
+  flush();
+
+  const tree = [];
+  let cEpic = null, cFeature = null;
+  for (const item of items) {
+    if (item.type === 'epic') { cEpic = { ...item, children: [] }; cFeature = null; tree.push(cEpic); }
+    else if (item.type === 'feature') { cFeature = { ...item, children: [] }; if (cEpic) cEpic.children.push(cFeature); else tree.push(cFeature); }
+    else { if (cFeature) cFeature.children.push(item); else if (cEpic) cEpic.children.push(item); else tree.push(item); }
+  }
+  return tree;
+}
+
+// ── Components ──
+function Pill({ label }) {
+  const s = getLabelStyle(label);
+  return h('span', { className: 'pill', style: { background: s.bg, color: s.fg } }, label);
+}
+
+function TreeNode({ item, depth, expanded, onToggle, onEdit, onOpen }) {
+  const key = `${item.number || item.title}-${depth}`;
+  const isOpen = expanded[key] !== false;
+  const hasKids = item.children && item.children.length > 0;
+  const displayLabels = (item.labelNames || item.labels || []).filter(l => l !== item.type);
+  const typeColors = { epic: 'var(--purple)', feature: 'var(--green)', story: 'var(--accent)' };
+
+  return h(Fragment, null,
+    h('div', { className: 'tree-node' },
+      h('div', { className: 'tree-row', style: { paddingLeft: depth * 24 + 12 }, onClick: () => hasKids && onToggle(key) },
+        h('span', { className: 'tree-toggle' }, hasKids ? (isOpen ? '▾' : '▸') : '·'),
+        h('div', { className: 'tree-content' },
+          h('div', { className: 'tree-title' },
+            h('span', { style: { fontWeight: item.type === 'epic' ? 700 : item.type === 'feature' ? 600 : 400, color: typeColors[item.type] || 'var(--fg)' } },
+              item.number ? `#${item.number} ` : '', item.title
+            ),
+            ...displayLabels.map(l => h(Pill, { key: l, label: l })),
+            item.state && h('span', { className: `status-badge ${item.state === 'open' ? 'status-open' : 'status-closed'}` }, item.state),
+            item._new && h('span', { className: 'status-badge status-new' }, 'new'),
+            item._modified && h('span', { className: 'status-badge status-modified' }, 'modified'),
+          ),
+          item.milestone && h('div', { className: 'tree-meta' },
+            typeof item.milestone === 'object' ? item.milestone.title : item.milestone
+          ),
+          item.body && h('div', { className: 'tree-body' }, item.body.length > 150 ? item.body.slice(0, 150) + '…' : item.body),
+        ),
+        h('div', { className: 'tree-actions' },
+          item.number && h('button', { className: 'btn btn-sm', onClick: (e) => { e.stopPropagation(); onOpen(item); } }, '↗'),
+          onEdit && h('button', { className: 'btn btn-sm', onClick: (e) => { e.stopPropagation(); onEdit(item); } }, 'Edit'),
+        ),
+        h('span', { className: 'tree-type' }, item.type),
+      ),
+    ),
+    hasKids && isOpen && item.children.map((child, i) =>
+      h(TreeNode, { key: child.number || i, item: child, depth: depth + 1, expanded, onToggle, onEdit, onOpen })
+    )
+  );
+}
+
+function ConnectScreen({ onConnect }) {
+  const [repo, setRepo] = useState('');
+  const [token, setToken] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleConnect = async () => {
+    setLoading(true); setError('');
+    try {
+      const api = new GitHubAPI(token, repo);
+      await api.verifyAccess();
+      onConnect(repo, token);
+    } catch (err) { setError(err.message); }
+    setLoading(false);
+  };
+
+  return h('div', { className: 'connect-screen' },
+    h('div', { className: 'connect-card' },
+      h('div', { style: { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 } },
+        h('span', { style: { fontSize: 24, fontWeight: 700 } }, 'R'),
+        h('span', { style: { fontSize: 24, fontWeight: 300, color: 'var(--accent)' } }, 'I'),
+        h('span', { style: { fontSize: 20, fontWeight: 700, marginLeft: 4 } }, 'Board'),
+      ),
+      h('p', null, 'Connect to a GitHub repository to manage epics, features, and stories as issues with a hierarchical board.'),
+      h('div', { className: 'field' },
+        h('label', null, 'Repository'),
+        h('input', { value: repo, onChange: e => setRepo(e.target.value), placeholder: 'owner/repo' }),
+      ),
+      h('div', { className: 'field' },
+        h('label', null, 'Personal access token'),
+        h('input', { type: 'password', value: token, onChange: e => setToken(e.target.value), placeholder: 'ghp_...' }),
+        h('small', null, 'Needs repo scope. Stored in browser session only.'),
+      ),
+      error && h('div', { style: { color: 'var(--red)', fontSize: 13, marginBottom: 12 } }, error),
+      h('button', { className: 'btn btn-primary', style: { width: '100%', justifyContent: 'center', padding: '10px' }, disabled: loading || !repo || !token, onClick: handleConnect },
+        loading ? 'Connecting...' : 'Connect'
+      ),
+    )
+  );
+}
+
+function EditModal({ item, onSave, onClose }) {
+  const [title, setTitle] = useState(item.title);
+  const [body, setBody] = useState(item.body || '');
+  const [labels, setLabels] = useState((item.labelNames || item.labels || []).join(', '));
+  const [state, setState] = useState(item.state || 'open');
+
+  return h('div', { className: 'modal-backdrop', onClick: onClose },
+    h('div', { className: 'modal', onClick: e => e.stopPropagation() },
+      h('h3', null, item.number ? `Edit #${item.number}` : 'Edit issue'),
+      h('div', { className: 'field' },
+        h('label', null, 'Title'),
+        h('input', { value: title, onChange: e => setTitle(e.target.value), style: { fontFamily: 'var(--font)' } }),
+      ),
+      h('div', { className: 'field' },
+        h('label', null, 'Labels (comma-separated)'),
+        h('input', { value: labels, onChange: e => setLabels(e.target.value) }),
+      ),
+      item.number && h('div', { className: 'field' },
+        h('label', null, 'State'),
+        h('select', { value: state, onChange: e => setState(e.target.value), style: { padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--fg)', fontSize: 14 } },
+          h('option', { value: 'open' }, 'Open'),
+          h('option', { value: 'closed' }, 'Closed'),
+        ),
+      ),
+      h('div', { className: 'field' },
+        h('label', null, 'Body'),
+        h('textarea', { value: body, onChange: e => setBody(e.target.value), style: { width: '100%', minHeight: 200, padding: 12, borderRadius: 'var(--radius)', border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--fg)', fontFamily: 'var(--mono)', fontSize: 13, lineHeight: 1.6, resize: 'vertical', outline: 'none' } }),
+      ),
+      h('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } },
+        h('button', { className: 'btn', onClick: onClose }, 'Cancel'),
+        h('button', { className: 'btn btn-primary', onClick: () => onSave({ ...item, title, body, state, labelNames: labels.split(',').map(l => l.trim()).filter(Boolean), _modified: true }) }, 'Save'),
+      ),
+    )
+  );
+}
+
+function PushModal({ items, api, milestoneMap, onDone, onClose }) {
+  const [progress, setProgress] = useState({ phase: 'preparing', current: 0, total: 0 });
+  const [results, setResults] = useState([]);
+  const [pushing, setPushing] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const modified = items.filter(i => i._modified && i.number);
+  const newItems = items.filter(i => i._new);
+
+  const startPush = async () => {
+    setPushing(true);
+    const res = [];
+
+    // Push modifications
+    setProgress({ phase: 'updating', current: 0, total: modified.length });
+    for (let i = 0; i < modified.length; i++) {
+      const item = modified[i];
+      try {
+        const updates = { title: item.title, body: item.body, labels: item.labelNames, state: item.state };
+        await api.updateIssue(item.number, updates);
+        res.push({ title: item.title, number: item.number, type: item.type, ok: true });
+      } catch (err) {
+        res.push({ title: item.title, number: item.number, type: item.type, error: err.message });
+      }
+      setProgress({ phase: 'updating', current: i + 1, total: modified.length });
+    }
+
+    // Push new issues (TODO: would need parent references from the tree structure)
+    setProgress({ phase: 'creating', current: 0, total: newItems.length });
+    for (let i = 0; i < newItems.length; i++) {
+      const item = newItems[i];
+      try {
+        const ms = item.milestone && milestoneMap[item.milestone];
+        const data = await api.createIssue(item.title, item.body, item.labels || item.labelNames, ms);
+        res.push({ title: item.title, number: data.number, type: item.type, ok: true });
+      } catch (err) {
+        res.push({ title: item.title, type: item.type, error: err.message });
+      }
+      setProgress({ phase: 'creating', current: i + 1, total: newItems.length });
+    }
+
+    setResults(res);
+    setDone(true);
+    setPushing(false);
+  };
+
+  return h('div', { className: 'modal-backdrop', onClick: onClose },
+    h('div', { className: 'modal', onClick: e => e.stopPropagation() },
+      h('h3', null, 'Sync changes to GitHub'),
+      !done && !pushing && h(Fragment, null,
+        h('div', { style: { marginBottom: 16, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.6 } },
+          modified.length > 0 && h('div', null, `${modified.length} issue${modified.length > 1 ? 's' : ''} to update`),
+          newItems.length > 0 && h('div', null, `${newItems.length} new issue${newItems.length > 1 ? 's' : ''} to create`),
+          modified.length === 0 && newItems.length === 0 && h('div', null, 'No changes to sync.'),
+        ),
+        h('div', { style: { display: 'flex', gap: 8, justifyContent: 'flex-end' } },
+          h('button', { className: 'btn', onClick: onClose }, 'Cancel'),
+          h('button', { className: 'btn btn-primary', disabled: modified.length + newItems.length === 0, onClick: startPush }, 'Push changes'),
+        ),
+      ),
+      pushing && h(Fragment, null,
+        h('div', { style: { fontSize: 13, marginBottom: 8, textTransform: 'capitalize' } }, `${progress.phase}... ${progress.current}/${progress.total}`),
+        h('div', { className: 'progress-bar' },
+          h('div', { className: 'progress-fill', style: { width: progress.total ? `${(progress.current / progress.total) * 100}%` : '0%' } }),
+        ),
+      ),
+      done && h(Fragment, null,
+        h('div', { style: { fontSize: 13, color: 'var(--fg2)', marginBottom: 12 } },
+          `${results.filter(r => r.ok).length} of ${results.length} operations succeeded.`
+        ),
+        results.map((r, i) => h('div', { key: i, style: { display: 'flex', gap: 8, alignItems: 'center', padding: '4px 0', fontSize: 13 } },
+          h('span', { style: { color: r.error ? 'var(--red)' : 'var(--green)', width: 16 } }, r.error ? '✕' : '✓'),
+          h(Pill, { label: r.type }),
+          h('span', { style: { flex: 1 } }, r.title),
+          r.number && h('span', { style: { fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--fg3)' } }, `#${r.number}`),
+        )),
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end', marginTop: 16 } },
+          h('button', { className: 'btn btn-primary', onClick: () => { onDone(); onClose(); } }, 'Done — reload board'),
+        ),
+      ),
+    )
+  );
+}
+
+// ── Main app ──
+function App() {
+  const [connected, setConnected] = useState(false);
+  const [repo, setRepo] = useState('');
+  const [token, setToken] = useState('');
+  const [tree, setTree] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState('board');
+  const [expanded, setExpanded] = useState({});
+  const [editItem, setEditItem] = useState(null);
+  const [showPush, setShowPush] = useState(false);
+  const [markdown, setMarkdown] = useState('');
+  const [milestoneMap, setMilestoneMap] = useState({});
+  const [error, setError] = useState('');
+  const apiRef = useRef(null);
+
+  const handleConnect = (r, t) => {
+    setRepo(r); setToken(t); setConnected(true);
+    apiRef.current = new GitHubAPI(t, r);
+    loadBoard(new GitHubAPI(t, r));
+  };
+
+  const loadBoard = async (api) => {
+    setLoading(true); setError('');
+    try {
+      const [issues, milestones] = await Promise.all([api.getIssues(), api.getMilestones()]);
+      const msMap = {};
+      milestones.forEach(m => { msMap[m.title] = m.number; });
+      setMilestoneMap(msMap);
+      const parsed = parseIssuesToTree(issues);
+      setTree(parsed);
+    } catch (err) { setError(err.message); }
+    setLoading(false);
+  };
+
+  const handleToggle = useCallback((key) => {
+    setExpanded(prev => ({ ...prev, [key]: prev[key] === false ? true : false }));
+  }, []);
+
+  const handleOpen = (item) => {
+    if (item.html_url) window.open(item.html_url, '_blank');
+  };
+
+  const handleEdit = (item) => setEditItem(item);
+
+  const handleSave = (updated) => {
+    function updateInTree(nodes) {
+      return nodes.map(n => {
+        if (n.number === updated.number) return { ...n, ...updated };
+        if (n.children) return { ...n, children: updateInTree(n.children) };
+        return n;
+      });
+    }
+    setTree(prev => updateInTree(prev));
+    setEditItem(null);
+  };
+
+  const handleAddFromMarkdown = () => {
+    const parsed = parseMarkdown(markdown);
+    // Flatten and push with ensured labels
+    async function pushAll() {
+      const api = apiRef.current;
+      setLoading(true);
+      // Ensure labels exist
+      const allLabels = new Set();
+      function collectLabels(items) {
+        items.forEach(i => { (i.labels||[]).forEach(l => allLabels.add(l)); if (i.children) collectLabels(i.children); });
+      }
+      collectLabels(parsed);
+      for (const label of allLabels) {
+        const s = getLabelStyle(label);
+        try { await api.createLabel(label, s.ghColor); } catch {}
+      }
+      // Ensure milestones
+      const milestones = new Set();
+      function collectMs(items) { items.forEach(i => { if (i.milestone) milestones.add(i.milestone); if (i.children) collectMs(i.children); }); }
+      collectMs(parsed);
+      const msMap = { ...milestoneMap };
+      for (const ms of milestones) {
+        if (!msMap[ms]) {
+          try { const data = await api.createMilestone(ms); msMap[ms] = data.number; } catch {}
+        }
+      }
+      setMilestoneMap(msMap);
+      // Create issues top-down
+      async function createTree(items, parentNumber) {
+        for (const item of items) {
+          let body = item.body || '';
+          if (parentNumber) body = `Parent: #${parentNumber}\n\n${body}`;
+          const prefix = item.type === 'epic' ? 'Epic' : item.type === 'feature' ? 'Feature' : 'Story';
+          try {
+            const data = await api.createIssue(`${prefix}: ${item.title}`, body, item.labels, msMap[item.milestone]);
+            if (item.children && item.children.length > 0) await createTree(item.children, data.number);
+          } catch (err) { console.error('Failed:', item.title, err); }
+        }
+      }
+      await createTree(parsed, null);
+      setMarkdown('');
+      await loadBoard(api);
+    }
+    pushAll();
+  };
+
+  // Collect modified/new items from tree
+  function collectItems(nodes) {
+    let items = [];
+    for (const n of nodes) {
+      items.push(n);
+      if (n.children) items = items.concat(collectItems(n.children));
+    }
+    return items;
+  }
+  const allItems = useMemo(() => collectItems(tree), [tree]);
+  const modifiedCount = allItems.filter(i => i._modified || i._new).length;
+
+  const counts = useMemo(() => {
+    let e = 0, f = 0, s = 0;
+    allItems.forEach(i => { if (i.type === 'epic') e++; else if (i.type === 'feature') f++; else if (i.type === 'story') s++; });
+    return { epics: e, features: f, stories: s, total: allItems.length };
+  }, [allItems]);
+
+  if (!connected) return h(ConnectScreen, { onConnect: handleConnect });
+
+  return h('div', { className: 'app' },
+    // Top bar
+    h('div', { className: 'topbar' },
+      h('div', { className: 'topbar-logo' }, h('span', null, 'R'), h('span', null, 'I'), h('span', { style: { fontWeight: 500, fontSize: 15, marginLeft: 4 } }, 'Board')),
+      h('span', { className: 'topbar-repo' }, repo),
+      h('div', { className: 'topbar-spacer' }),
+      h('div', { className: 'topbar-stats' },
+        h('span', null, `${counts.epics} epics`),
+        h('span', null, `${counts.features} features`),
+        h('span', null, `${counts.stories} stories`),
+      ),
+      modifiedCount > 0 && h('button', { className: 'btn btn-primary btn-sm', onClick: () => setShowPush(true) },
+        `Sync ${modifiedCount} change${modifiedCount > 1 ? 's' : ''}`
+      ),
+      h('button', { className: 'btn btn-sm', onClick: () => loadBoard(apiRef.current) }, '↻ Refresh'),
+      h('button', { className: 'btn btn-sm', onClick: () => { setConnected(false); setTree([]); } }, 'Disconnect'),
+    ),
+    // Tabs
+    h('div', { className: 'tabs' },
+      ['board', 'add issues', 'markdown import'].map(t =>
+        h('button', { key: t, className: `tab ${tab === t ? 'active' : ''}`, onClick: () => setTab(t) },
+          t.charAt(0).toUpperCase() + t.slice(1)
+        )
+      ),
+    ),
+    // Main content
+    h('div', { className: 'main' },
+      loading && h('div', { style: { padding: 40, textAlign: 'center', color: 'var(--fg3)' } }, 'Loading issues...'),
+      error && h('div', { style: { padding: 20, color: 'var(--red)', fontSize: 13 } }, error),
+      !loading && tab === 'board' && h('div', { style: { maxWidth: 960, margin: '0 auto' } },
+        tree.length === 0
+          ? h('div', { style: { padding: 40, textAlign: 'center', color: 'var(--fg3)', fontSize: 14 } },
+              'No issues found. Use "Markdown import" to create your first issues.'
+            )
+          : tree.map((item, i) =>
+              h(TreeNode, { key: item.number || i, item, depth: 0, expanded, onToggle: handleToggle, onEdit: handleEdit, onOpen: handleOpen })
+            )
+      ),
+      !loading && tab === 'add issues' && h('div', { className: 'panel' },
+        h('div', { style: { marginBottom: 12, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.6 } },
+          'Click "Edit" on any issue in the board tab to modify it, then use "Sync" to push changes to GitHub.'
+        ),
+        h('div', { style: { padding: 24, background: 'var(--bg2)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)', textAlign: 'center' } },
+          h('div', { style: { fontSize: 32, marginBottom: 8 } }, '✎'),
+          h('div', { style: { fontSize: 14, fontWeight: 500 } }, 'Edit issues directly from the board'),
+          h('div', { style: { fontSize: 13, color: 'var(--fg2)', marginTop: 4 } }, 'Hover over any issue and click "Edit" to modify titles, labels, body, or state. Modified issues show an orange badge and can be synced.'),
+        ),
+      ),
+      !loading && tab === 'markdown import' && h('div', { className: 'panel' },
+        h('div', { style: { marginBottom: 8, fontSize: 12, color: 'var(--fg2)', lineHeight: 1.6 } },
+          'Paste a markdown plan using ',
+          h('code', { style: { fontFamily: 'var(--mono)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 4 } }, '# Epic:'),
+          ' ',
+          h('code', { style: { fontFamily: 'var(--mono)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 4 } }, '## Feature:'),
+          ' ',
+          h('code', { style: { fontFamily: 'var(--mono)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 4 } }, '### Story:'),
+          ' headings with ',
+          h('code', { style: { fontFamily: 'var(--mono)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 4 } }, 'labels:'),
+          ' and ',
+          h('code', { style: { fontFamily: 'var(--mono)', background: 'var(--bg2)', padding: '1px 5px', borderRadius: 4 } }, 'milestone:'),
+          ' metadata.',
+        ),
+        h('textarea', { className: 'editor-area', value: markdown, onChange: e => setMarkdown(e.target.value), placeholder: '# Epic: My Epic\nlabels: epic, phase-1\nmilestone: Phase 1\n---\nDescription of the epic.\n\n## Feature: My Feature\nlabels: feature, phase-1, backend\n---\nDescription.\n\n### Story: My Story\nlabels: story, phase-1\n---\nAcceptance criteria...' }),
+        markdown && h('div', { style: { marginTop: 12, display: 'flex', justifyContent: 'flex-end' } },
+          h('button', { className: 'btn btn-primary', onClick: handleAddFromMarkdown }, 'Create issues from markdown'),
+        ),
+      ),
+    ),
+    // Modals
+    editItem && h(EditModal, { item: editItem, onSave: handleSave, onClose: () => setEditItem(null) }),
+    showPush && h(PushModal, { items: allItems, api: apiRef.current, milestoneMap, onDone: () => loadBoard(apiRef.current), onClose: () => setShowPush(false) }),
+  );
+}
+
+createRoot(document.getElementById('root')).render(h(App));
+</script>
+</body>
+</html>
