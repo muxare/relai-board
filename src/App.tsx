@@ -8,6 +8,7 @@ import { TreeNode } from './components/TreeNode';
 import { ConnectScreen } from './components/ConnectScreen';
 import { EditModal } from './components/EditModal';
 import { PushModal } from './components/PushModal';
+import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
 
@@ -25,7 +26,26 @@ function App() {
     {},
   );
   const [error, setError] = useState('');
+  const [oauthToken, setOauthToken] = useState<string | null>(null);
   const apiRef = useRef<GitHubAPI | null>(null);
+
+  // Handle OAuth callback — exchange code for token
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    if (!code) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    fetch(OAUTH_WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    })
+      .then((res) => res.json())
+      .then((data: { access_token?: string }) => {
+        if (data.access_token) setOauthToken(data.access_token);
+      })
+      .catch(console.error);
+  }, []);
 
   // Restore session from sessionStorage on mount
   useEffect(() => {
@@ -212,7 +232,7 @@ function App() {
     return { epics: e, features: f, stories: s, total: allItems.length };
   }, [allItems]);
 
-  if (!connected) return <ConnectScreen onConnect={handleConnect} />;
+  if (!connected) return <ConnectScreen onConnect={handleConnect} oauthToken={oauthToken} />;
 
   return (
     <div className="app">
