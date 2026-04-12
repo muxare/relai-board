@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { TreeNode as TreeNodeType } from './types/github';
 import { GitHubAPI } from './api/github';
 import { getLabelStyle } from './labels/styles';
@@ -9,10 +9,11 @@ import { ConnectScreen } from './components/ConnectScreen';
 import { EditModal } from './components/EditModal';
 import { PushModal } from './components/PushModal';
 
+const SESSION_KEY = 'relai-board:session';
+
 function App() {
   const [connected, setConnected] = useState(false);
   const [repo, setRepo] = useState('');
-  const [, setToken] = useState('');
   const [tree, setTree] = useState<TreeNodeType[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('board');
@@ -26,9 +27,30 @@ function App() {
   const [error, setError] = useState('');
   const apiRef = useRef<GitHubAPI | null>(null);
 
+  // Restore session from sessionStorage on mount
+  useEffect(() => {
+    const saved = sessionStorage.getItem(SESSION_KEY);
+    if (saved) {
+      try {
+        const { repo: r, token: t } = JSON.parse(saved) as {
+          repo: string;
+          token: string;
+        };
+        if (r && t) {
+          setRepo(r);
+          setConnected(true);
+          apiRef.current = new GitHubAPI(t, r);
+          loadBoard(new GitHubAPI(t, r));
+        }
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
   const handleConnect = (r: string, t: string) => {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ repo: r, token: t }));
     setRepo(r);
-    setToken(t);
     setConnected(true);
     apiRef.current = new GitHubAPI(t, r);
     loadBoard(new GitHubAPI(t, r));
@@ -227,6 +249,7 @@ function App() {
         <button
           className="btn btn-sm"
           onClick={() => {
+            sessionStorage.removeItem(SESSION_KEY);
             setConnected(false);
             setTree([]);
           }}
