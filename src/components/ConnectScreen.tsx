@@ -65,7 +65,7 @@ export function ConnectScreen({ onConnect }: ConnectScreenProps) {
             onChange={(e) => setToken(e.target.value)}
             placeholder="ghp_..."
           />
-          <small>Needs repo scope. Stored in browser session only.</small>
+          <small>Needs Issues read/write scope. Stored in session only — cleared when you close the tab.</small>
         </div>
         {error && (
           <div
