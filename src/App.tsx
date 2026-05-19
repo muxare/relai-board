@@ -9,6 +9,7 @@ import { ConnectScreen } from './components/ConnectScreen';
 import { EditModal } from './components/EditModal';
 import { PushModal } from './components/PushModal';
 import { RepoSelector, pushRecentRepo } from './components/RepoSelector';
+import { PinnedSidebar } from './components/PinnedSidebar';
 import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
@@ -301,200 +302,211 @@ function App() {
           Disconnect
         </button>
       </div>
-      {/* Tabs */}
-      {repo && (
-        <div className="tabs">
-          {['board', 'add issues', 'markdown import'].map((t) => (
-            <button
-              key={t}
-              className={`tab ${tab === t ? 'active' : ''}`}
-              onClick={() => setTab(t)}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </div>
-      )}
-      {/* Main content */}
-      <div className="main">
-        {!repo && (
-          <div
-            style={{
-              padding: 60,
-              textAlign: 'center',
-              color: 'var(--fg3)',
-              fontSize: 14,
-            }}
-          >
-            Select a repository to get started.
-          </div>
-        )}
-        {repo && loading && (
-          <div
-            style={{ padding: 40, textAlign: 'center', color: 'var(--fg3)' }}
-          >
-            Loading issues...
-          </div>
-        )}
-        {error && (
-          <div style={{ padding: 20, color: 'var(--red)', fontSize: 13 }}>
-            {error}
-          </div>
-        )}
-        {repo && !loading && tab === 'board' && (
-          <div style={{ maxWidth: 960, margin: '0 auto' }}>
-            {tree.length === 0 ? (
+      <div className="app-body">
+        <PinnedSidebar currentRepo={repo} onSelect={handleRepoSelect} />
+        <div className="app-content">
+          {/* Tabs */}
+          {repo && (
+            <div className="tabs">
+              {['board', 'add issues', 'markdown import'].map((t) => (
+                <button
+                  key={t}
+                  className={`tab ${tab === t ? 'active' : ''}`}
+                  onClick={() => setTab(t)}
+                >
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          )}
+          {/* Main content */}
+          <div className="main">
+            {!repo && (
               <div
                 style={{
-                  padding: 40,
+                  padding: 60,
                   textAlign: 'center',
                   color: 'var(--fg3)',
                   fontSize: 14,
                 }}
               >
-                No issues found. Use &quot;Markdown import&quot; to create your
-                first issues.
+                Select a repository to get started.
               </div>
-            ) : (
-              tree.map((item, i) => (
-                <TreeNode
-                  key={item.number || i}
-                  item={item}
-                  depth={0}
-                  expanded={expanded}
-                  onToggle={handleToggle}
-                  onEdit={handleEdit}
-                  onOpen={handleOpen}
-                />
-              ))
             )}
-          </div>
-        )}
-        {repo && !loading && tab === 'add issues' && (
-          <div className="panel">
-            <div
-              style={{
-                marginBottom: 12,
-                fontSize: 13,
-                color: 'var(--fg2)',
-                lineHeight: 1.6,
-              }}
-            >
-              Click &quot;Edit&quot; on any issue in the board tab to modify it,
-              then use &quot;Sync&quot; to push changes to GitHub.
-            </div>
-            <div
-              style={{
-                padding: 24,
-                background: 'var(--bg2)',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--border)',
-                textAlign: 'center',
-              }}
-            >
-              <div style={{ fontSize: 32, marginBottom: 8 }}>✎</div>
-              <div style={{ fontSize: 14, fontWeight: 500 }}>
-                Edit issues directly from the board
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 4 }}>
-                Hover over any issue and click &quot;Edit&quot; to modify
-                titles, labels, body, or state. Modified issues show an orange
-                badge and can be synced.
-              </div>
-            </div>
-          </div>
-        )}
-        {repo && !loading && tab === 'markdown import' && (
-          <div className="panel">
-            <div
-              style={{
-                marginBottom: 8,
-                fontSize: 12,
-                color: 'var(--fg2)',
-                lineHeight: 1.6,
-              }}
-            >
-              Paste a markdown plan using{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--bg2)',
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                # Epic:
-              </code>{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--bg2)',
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                ## Feature:
-              </code>{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--bg2)',
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                ### Story:
-              </code>{' '}
-              headings with{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--bg2)',
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                labels:
-              </code>{' '}
-              and{' '}
-              <code
-                style={{
-                  fontFamily: 'var(--mono)',
-                  background: 'var(--bg2)',
-                  padding: '1px 5px',
-                  borderRadius: 4,
-                }}
-              >
-                milestone:
-              </code>{' '}
-              metadata.
-            </div>
-            <textarea
-              className="editor-area"
-              value={markdown}
-              onChange={(e) => setMarkdown(e.target.value)}
-              placeholder={
-                '# Epic: My Epic\nlabels: epic, phase-1\nmilestone: Phase 1\n---\nDescription of the epic.\n\n## Feature: My Feature\nlabels: feature, phase-1, backend\n---\nDescription.\n\n### Story: My Story\nlabels: story, phase-1\n---\nAcceptance criteria...'
-              }
-            />
-            {markdown && (
+            {repo && loading && (
               <div
                 style={{
-                  marginTop: 12,
-                  display: 'flex',
-                  justifyContent: 'flex-end',
+                  padding: 40,
+                  textAlign: 'center',
+                  color: 'var(--fg3)',
                 }}
               >
-                <button
-                  className="btn btn-primary"
-                  onClick={handleAddFromMarkdown}
+                Loading issues...
+              </div>
+            )}
+            {error && (
+              <div style={{ padding: 20, color: 'var(--red)', fontSize: 13 }}>
+                {error}
+              </div>
+            )}
+            {repo && !loading && tab === 'board' && (
+              <div style={{ maxWidth: 960, margin: '0 auto' }}>
+                {tree.length === 0 ? (
+                  <div
+                    style={{
+                      padding: 40,
+                      textAlign: 'center',
+                      color: 'var(--fg3)',
+                      fontSize: 14,
+                    }}
+                  >
+                    No issues found. Use &quot;Markdown import&quot; to create
+                    your first issues.
+                  </div>
+                ) : (
+                  tree.map((item, i) => (
+                    <TreeNode
+                      key={item.number || i}
+                      item={item}
+                      depth={0}
+                      expanded={expanded}
+                      onToggle={handleToggle}
+                      onEdit={handleEdit}
+                      onOpen={handleOpen}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+            {repo && !loading && tab === 'add issues' && (
+              <div className="panel">
+                <div
+                  style={{
+                    marginBottom: 12,
+                    fontSize: 13,
+                    color: 'var(--fg2)',
+                    lineHeight: 1.6,
+                  }}
                 >
-                  Create issues from markdown
-                </button>
+                  Click &quot;Edit&quot; on any issue in the board tab to modify
+                  it, then use &quot;Sync&quot; to push changes to GitHub.
+                </div>
+                <div
+                  style={{
+                    padding: 24,
+                    background: 'var(--bg2)',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid var(--border)',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>✎</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>
+                    Edit issues directly from the board
+                  </div>
+                  <div
+                    style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 4 }}
+                  >
+                    Hover over any issue and click &quot;Edit&quot; to modify
+                    titles, labels, body, or state. Modified issues show an
+                    orange badge and can be synced.
+                  </div>
+                </div>
+              </div>
+            )}
+            {repo && !loading && tab === 'markdown import' && (
+              <div className="panel">
+                <div
+                  style={{
+                    marginBottom: 8,
+                    fontSize: 12,
+                    color: 'var(--fg2)',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Paste a markdown plan using{' '}
+                  <code
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      background: 'var(--bg2)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    # Epic:
+                  </code>{' '}
+                  <code
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      background: 'var(--bg2)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    ## Feature:
+                  </code>{' '}
+                  <code
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      background: 'var(--bg2)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    ### Story:
+                  </code>{' '}
+                  headings with{' '}
+                  <code
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      background: 'var(--bg2)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    labels:
+                  </code>{' '}
+                  and{' '}
+                  <code
+                    style={{
+                      fontFamily: 'var(--mono)',
+                      background: 'var(--bg2)',
+                      padding: '1px 5px',
+                      borderRadius: 4,
+                    }}
+                  >
+                    milestone:
+                  </code>{' '}
+                  metadata.
+                </div>
+                <textarea
+                  className="editor-area"
+                  value={markdown}
+                  onChange={(e) => setMarkdown(e.target.value)}
+                  placeholder={
+                    '# Epic: My Epic\nlabels: epic, phase-1\nmilestone: Phase 1\n---\nDescription of the epic.\n\n## Feature: My Feature\nlabels: feature, phase-1, backend\n---\nDescription.\n\n### Story: My Story\nlabels: story, phase-1\n---\nAcceptance criteria...'
+                  }
+                />
+                {markdown && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                    }}
+                  >
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleAddFromMarkdown}
+                    >
+                      Create issues from markdown
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
       {/* Modals */}
       {editItem && (
