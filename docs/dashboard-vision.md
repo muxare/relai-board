@@ -24,21 +24,35 @@ repos and lets you trigger actions from there.
 
 ## Phase 2 — Cross-repo overview
 
-A landing dashboard composed of widgets, each scoped to all pinned repos:
+A landing dashboard composed of widgets, each scoped to all pinned repos.
 
-- Open PRs awaiting your review / your authored PRs (stalled > N days
-  highlighted).
-- Failing CI on the default branch.
-- Issues assigned to you, grouped by repo.
-- Dependabot / security alerts count.
-- Recent releases and unreleased commits on `main`.
-- Stale branches you own.
+Shipped in the initial Phase 2 PR:
 
-Implementation notes:
+- Open PRs awaiting your review (stale > 3 days highlighted).
+- Your open PRs (stale > 7 days highlighted).
+- Issues assigned to you across pinned repos.
+- Plugin-shaped widget interface (`src/widgets/`) — each widget is a
+  `{ id, title, fetch, render, empty }` module, so adding a card is one
+  file.
+- Per-widget and global refresh, with a "last fetched" timestamp.
+- Dashboard is the default view when no repo is selected; topbar
+  "◀ Dashboard" button returns from a per-repo board view.
 
-- One small GraphQL query per widget.
-- Cache results in IndexedDB with a "last refreshed" timestamp and a
-  manual refresh button.
+Deferred follow-ups (still part of Phase 2 scope):
+
+- **More widgets**: failing CI on the default branch, Dependabot /
+  security alerts count, recent releases and unreleased commits on
+  `main`, stale branches you own.
+- **IndexedDB cache**: today the cache layer
+  (`src/storage/widgetCache.ts`) is localStorage-backed. Move to
+  IndexedDB once we cache larger payloads (e.g. workflow runs, commit
+  lists) that bump against the ~5 MB localStorage budget.
+- **GraphQL over REST**: current widgets each fire one REST search
+  call, which is fine for three cards. Migrate to a single GraphQL
+  query per widget once we add widgets that need joins (e.g. PRs +
+  their latest CI status) or when rate-limit pressure shows up.
+- **Rate-limit budget UI**: see "Architectural shifts" below — defer
+  until the widget count or scan frequency warrants it.
 
 ## Phase 3 — Triggerable actions
 
