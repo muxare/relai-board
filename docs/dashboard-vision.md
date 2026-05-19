@@ -56,15 +56,37 @@ Deferred follow-ups (still part of Phase 2 scope):
 
 ## Phase 3 — Triggerable actions
 
-Move from "view" to "do." Each row gets contextual actions:
+Move from "view" to "do." Each row gets contextual actions.
 
-- Re-run failed workflow, approve / merge PR, request reviewers, add
-  labels, close stale issues.
-- Bulk actions across repos: "apply label X to all matching issues,"
-  "enable Dependabot," "sync branch protection from a template repo."
-- **Workflow dispatch launcher**: pick any `workflow_dispatch` workflow
-  across pinned repos and fire it with inputs. Turns the dashboard into a
+Shipped in the initial Phase 3 PR:
+
+- **Row actions** on existing dashboard widgets:
+  - PRs awaiting review → ✓ Approve
+  - Your open PRs → ⏷ Squash-merge
+  - Issues assigned to you → ✕ Close
+- **Plugin-shaped `RowAction<T>`** in `src/widgets/types.ts` —
+  `{ id, label, visible?, confirm?, run }` — so adding a new per-row
+  action is one entry in a widget's `actions` array. Confirmations,
+  per-row busy/error state, and refresh on success are handled by
+  `IssueList`.
+- **Workflow dispatch launcher** (`src/components/Workflows.tsx`): pick
+  any `workflow_dispatch` workflow across pinned repos, choose a ref,
+  fill declared inputs (parsed from the workflow YAML, including
+  `choice` / `boolean` types), and fire it. Turns the dashboard into a
   personal ops console.
+- **Wider OAuth scope**: bumped from `repo` to `repo workflow` to allow
+  workflow dispatch. PR merges / issue closes already fit inside `repo`.
+- **Top-bar Dashboard / Workflows switcher** when no repo is selected.
+
+Deferred follow-ups (still part of Phase 3 scope):
+
+- More row actions: re-run failed workflow runs, request reviewers, add
+  labels via picker.
+- **Bulk actions across repos**: "apply label X to all matching issues,"
+  "enable Dependabot," "sync branch protection from a template repo."
+- Workflow inputs use a tiny hand-rolled YAML scanner — fine for the
+  flat shapes Actions allows, but swap for a real YAML parser if we
+  start consuming richer workflow files (composite actions, anchors).
 
 ## Phase 4 — Saved views & automations
 

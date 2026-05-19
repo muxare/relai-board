@@ -11,6 +11,7 @@ import { PushModal } from './components/PushModal';
 import { RepoSelector, pushRecentRepo } from './components/RepoSelector';
 import { PinnedSidebar } from './components/PinnedSidebar';
 import { Dashboard } from './components/Dashboard';
+import { Workflows } from './components/Workflows';
 import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
@@ -21,6 +22,9 @@ function App() {
   const [tree, setTree] = useState<TreeNodeType[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('board');
+  const [homeView, setHomeView] = useState<'dashboard' | 'workflows'>(
+    'dashboard',
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [editItem, setEditItem] = useState<TreeNodeType | null>(null);
   const [showPush, setShowPush] = useState(false);
@@ -285,6 +289,22 @@ function App() {
             ◀ Dashboard
           </button>
         )}
+        {!repo && (
+          <div className="tabs" style={{ border: 'none', padding: 0 }}>
+            <button
+              className={`tab ${homeView === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setHomeView('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`tab ${homeView === 'workflows' ? 'active' : ''}`}
+              onClick={() => setHomeView('workflows')}
+            >
+              Workflows
+            </button>
+          </div>
+        )}
         <RepoSelector
           currentRepo={repo}
           token={token}
@@ -346,7 +366,12 @@ function App() {
           )}
           {/* Main content */}
           <div className="main">
-            {!repo && dashboardApi && <Dashboard api={dashboardApi} />}
+            {!repo && dashboardApi && homeView === 'dashboard' && (
+              <Dashboard api={dashboardApi} />
+            )}
+            {!repo && dashboardApi && homeView === 'workflows' && (
+              <Workflows api={dashboardApi} />
+            )}
             {repo && loading && (
               <div
                 style={{
