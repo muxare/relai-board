@@ -8,12 +8,13 @@ import { TreeNode } from './components/TreeNode';
 import { ConnectScreen } from './components/ConnectScreen';
 import { EditModal } from './components/EditModal';
 import { PushModal } from './components/PushModal';
+import { RepoSelector, pushRecentRepo } from './components/RepoSelector';
 import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
 
 function App() {
-  const [connected, setConnected] = useState(false);
+  const [token, setToken] = useState('');
   const [repo, setRepo] = useState('');
   const [tree, setTree] = useState<TreeNodeType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -22,9 +23,7 @@ function App() {
   const [editItem, setEditItem] = useState<TreeNodeType | null>(null);
   const [showPush, setShowPush] = useState(false);
   const [markdown, setMarkdown] = useState('');
-  const [milestoneMap, setMilestoneMap] = useState<Record<string, number>>(
-    {},
-  );
+  const [milestoneMap, setMilestoneMap] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [oauthToken, setOauthToken] = useState<string | null>(null);
   const apiRef = useRef<GitHubAPI | null>(null);
@@ -50,31 +49,33 @@ function App() {
   // Restore session from sessionStorage on mount
   useEffect(() => {
     const saved = sessionStorage.getItem(SESSION_KEY);
-    if (saved) {
-      try {
-        const { repo: r, token: t } = JSON.parse(saved) as {
-          repo: string;
-          token: string;
-        };
-        if (r && t) {
-          setRepo(r);
-          setConnected(true);
-          apiRef.current = new GitHubAPI(t, r);
-          loadBoard(new GitHubAPI(t, r));
-        }
-      } catch {
-        sessionStorage.removeItem(SESSION_KEY);
+    if (!saved) return;
+    try {
+      const { repo: r, token: t } = JSON.parse(saved) as {
+        repo?: string;
+        token?: string;
+      };
+      if (!t) return;
+      setToken(t);
+      if (r) {
+        setRepo(r);
+        const api = new GitHubAPI(t, r);
+        apiRef.current = api;
+        loadBoard(api);
       }
+    } catch {
+      sessionStorage.removeItem(SESSION_KEY);
     }
   }, []);
 
-  const handleConnect = (r: string, t: string) => {
+  const persistSession = (t: string, r: string) => {
     sessionStorage.setItem(SESSION_KEY, JSON.stringify({ repo: r, token: t }));
-    setRepo(r);
-    setConnected(true);
-    apiRef.current = new GitHubAPI(t, r);
-    loadBoard(new GitHubAPI(t, r));
   };
+
+  const handleConnect = useCallback((t: string) => {
+    setToken(t);
+    persistSession(t, '');
+  }, []);
 
   const loadBoard = async (api: GitHubAPI) => {
     setLoading(true);
@@ -114,8 +115,7 @@ function App() {
     function updateInTree(nodes: TreeNodeType[]): TreeNodeType[] {
       return nodes.map((n) => {
         if (n.number === updated.number) return { ...n, ...updated };
-        if (n.children)
-          return { ...n, children: updateInTree(n.children) };
+        if (n.children) return { ...n, children: updateInTree(n.children) };
         return n;
       });
     }
@@ -130,9 +130,7 @@ function App() {
       setLoading(true);
       // Ensure labels exist
       const allLabels = new Set<string>();
-      function collectLabels(
-        items: ReturnType<typeof parseMarkdown>,
-      ) {
+      function collectLabels(items: ReturnType<typeof parseMarkdown>) {
         items.forEach((i) => {
           (i.labels || []).forEach((l) => allLabels.add(l));
           if (i.children) collectLabels(i.children);
@@ -149,9 +147,7 @@ function App() {
       }
       // Ensure milestones
       const milestones = new Set<string>();
-      function collectMs(
-        items: ReturnType<typeof parseMarkdown>,
-      ) {
+      function collectMs(items: ReturnType<typeof parseMarkdown>) {
         items.forEach((i) => {
           if (i.milestone) milestones.add(i.milestone);
           if (i.children) collectMs(i.children);
@@ -216,9 +212,26 @@ function App() {
     }
     return collectItems(tree);
   }, [tree]);
-  const modifiedCount = allItems.filter(
-    (i) => i._modified || i._new,
-  ).length;
+  const modifiedCount = allItems.filter((i) => i._modified || i._new).length;
+  const hasUnsavedChanges = modifiedCount > 0;
+
+  const handleRepoSelect = useCallback(
+    (r: string) => {
+      if (hasUnsavedChanges) {
+        const ok = window.confirm(
+          'You have unsaved changes. Switch repository and discard them?',
+        );
+        if (!ok) return;
+      }
+      setRepo(r);
+      pushRecentRepo(r);
+      persistSession(token, r);
+      const api = new GitHubAPI(token, r);
+      apiRef.current = api;
+      loadBoard(api);
+    },
+    [hasUnsavedChanges, token],
+  );
 
   const counts = useMemo(() => {
     let e = 0,
@@ -232,7 +245,8 @@ function App() {
     return { epics: e, features: f, stories: s, total: allItems.length };
   }, [allItems]);
 
-  if (!connected) return <ConnectScreen onConnect={handleConnect} oauthToken={oauthToken} />;
+  if (!token)
+    return <ConnectScreen onConnect={handleConnect} oauthToken={oauthToken} />;
 
   return (
     <div className="app">
@@ -245,53 +259,77 @@ function App() {
             Board
           </span>
         </div>
-        <span className="topbar-repo">{repo}</span>
+        <RepoSelector
+          currentRepo={repo}
+          token={token}
+          onSelect={handleRepoSelect}
+        />
         <div className="topbar-spacer" />
-        <div className="topbar-stats">
-          <span>{counts.epics} epics</span>
-          <span>{counts.features} features</span>
-          <span>{counts.stories} stories</span>
-        </div>
-        {modifiedCount > 0 && (
-          <button
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowPush(true)}
-          >
-            Sync {modifiedCount} change{modifiedCount > 1 ? 's' : ''}
-          </button>
+        {repo && (
+          <>
+            <div className="topbar-stats">
+              <span>{counts.epics} epics</span>
+              <span>{counts.features} features</span>
+              <span>{counts.stories} stories</span>
+            </div>
+            {modifiedCount > 0 && (
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setShowPush(true)}
+              >
+                Sync {modifiedCount} change{modifiedCount > 1 ? 's' : ''}
+              </button>
+            )}
+            <button
+              className="btn btn-sm"
+              onClick={() => loadBoard(apiRef.current!)}
+            >
+              ↻ Refresh
+            </button>
+          </>
         )}
-        <button
-          className="btn btn-sm"
-          onClick={() => loadBoard(apiRef.current!)}
-        >
-          ↻ Refresh
-        </button>
         <button
           className="btn btn-sm"
           onClick={() => {
             sessionStorage.removeItem(SESSION_KEY);
-            setConnected(false);
+            setToken('');
+            setRepo('');
             setTree([]);
+            apiRef.current = null;
           }}
         >
           Disconnect
         </button>
       </div>
       {/* Tabs */}
-      <div className="tabs">
-        {['board', 'add issues', 'markdown import'].map((t) => (
-          <button
-            key={t}
-            className={`tab ${tab === t ? 'active' : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      {repo && (
+        <div className="tabs">
+          {['board', 'add issues', 'markdown import'].map((t) => (
+            <button
+              key={t}
+              className={`tab ${tab === t ? 'active' : ''}`}
+              onClick={() => setTab(t)}
+            >
+              {t.charAt(0).toUpperCase() + t.slice(1)}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Main content */}
       <div className="main">
-        {loading && (
+        {!repo && (
+          <div
+            style={{
+              padding: 60,
+              textAlign: 'center',
+              color: 'var(--fg3)',
+              fontSize: 14,
+            }}
+          >
+            Select a repository to get started.
+          </div>
+        )}
+        {repo && loading && (
           <div
             style={{ padding: 40, textAlign: 'center', color: 'var(--fg3)' }}
           >
@@ -303,7 +341,7 @@ function App() {
             {error}
           </div>
         )}
-        {!loading && tab === 'board' && (
+        {repo && !loading && tab === 'board' && (
           <div style={{ maxWidth: 960, margin: '0 auto' }}>
             {tree.length === 0 ? (
               <div
@@ -332,7 +370,7 @@ function App() {
             )}
           </div>
         )}
-        {!loading && tab === 'add issues' && (
+        {repo && !loading && tab === 'add issues' && (
           <div className="panel">
             <div
               style={{
@@ -358,9 +396,7 @@ function App() {
               <div style={{ fontSize: 14, fontWeight: 500 }}>
                 Edit issues directly from the board
               </div>
-              <div
-                style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 4 }}
-              >
+              <div style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 4 }}>
                 Hover over any issue and click &quot;Edit&quot; to modify
                 titles, labels, body, or state. Modified issues show an orange
                 badge and can be synced.
@@ -368,7 +404,7 @@ function App() {
             </div>
           </div>
         )}
-        {!loading && tab === 'markdown import' && (
+        {repo && !loading && tab === 'markdown import' && (
           <div className="panel">
             <div
               style={{

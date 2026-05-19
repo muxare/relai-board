@@ -1,3 +1,16 @@
 name = "relai-board-auth"
 main = "index.ts"
 compatibility_date = "2024-01-01"
+
+[vars]
+ALLOWED_ORIGIN = "https://muxare.github.io"
+
+# Dev environment — deploy with `wrangler deploy --env dev`.
+# Set its secrets with:
+#   wrangler secret put CLIENT_ID --env dev
+#   wrangler secret put CLIENT_SECRET --env dev
+[env.dev]
+name = "relai-board-auth-dev"
+
+[env.dev.vars]
+ALLOWED_ORIGIN = "http://localhost:5173"
