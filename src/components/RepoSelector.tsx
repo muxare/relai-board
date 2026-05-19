@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GitHubAPI } from '../api/github';
 import type { Repo } from '../types/github';
+import { togglePinned } from '../storage/pinnedRepos';
+import { usePinnedRepos } from '../storage/usePinnedRepos';
 
 const RECENT_KEY = 'relai-board:recent-repos';
 const MAX_RECENT = 10;
@@ -47,6 +49,8 @@ export function RepoSelector({
   const [highlight, setHighlight] = useState(0);
   const [error, setError] = useState('');
   const [recent, setRecent] = useState<string[]>([]);
+  const pinned = usePinnedRepos();
+  const pinnedSet = new Set(pinned);
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -188,6 +192,7 @@ export function RepoSelector({
     const idx = runningIndex++;
     const active = idx === highlight;
     const selected = name === currentRepo;
+    const isPinnedNow = pinnedSet.has(name);
     return (
       <div
         key={name}
@@ -198,7 +203,20 @@ export function RepoSelector({
           handleSelect(name);
         }}
       >
-        {name}
+        <span className="repo-selector-item-name">{name}</span>
+        <button
+          type="button"
+          className={`repo-selector-pin ${isPinnedNow ? 'pinned' : ''}`}
+          title={isPinnedNow ? 'Unpin from dashboard' : 'Pin to dashboard'}
+          aria-label={isPinnedNow ? 'Unpin repository' : 'Pin repository'}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            togglePinned(name);
+          }}
+        >
+          {isPinnedNow ? '★' : '☆'}
+        </button>
       </div>
     );
   };
