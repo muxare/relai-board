@@ -10,6 +10,7 @@ import { EditModal } from './components/EditModal';
 import { PushModal } from './components/PushModal';
 import { RepoSelector, pushRecentRepo } from './components/RepoSelector';
 import { PinnedSidebar } from './components/PinnedSidebar';
+import { Dashboard } from './components/Dashboard';
 import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
@@ -28,6 +29,10 @@ function App() {
   const [error, setError] = useState('');
   const [oauthToken, setOauthToken] = useState<string | null>(null);
   const apiRef = useRef<GitHubAPI | null>(null);
+  const dashboardApi = useMemo(
+    () => (token ? new GitHubAPI(token) : null),
+    [token],
+  );
 
   // Handle OAuth callback — exchange code for token
   useEffect(() => {
@@ -260,6 +265,26 @@ function App() {
             Board
           </span>
         </div>
+        {repo && (
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              if (hasUnsavedChanges) {
+                const ok = window.confirm(
+                  'You have unsaved changes. Leave the board and discard them?',
+                );
+                if (!ok) return;
+              }
+              setRepo('');
+              setTree([]);
+              apiRef.current = null;
+              persistSession(token, '');
+            }}
+            title="Back to dashboard"
+          >
+            ◀ Dashboard
+          </button>
+        )}
         <RepoSelector
           currentRepo={repo}
           token={token}
@@ -321,18 +346,7 @@ function App() {
           )}
           {/* Main content */}
           <div className="main">
-            {!repo && (
-              <div
-                style={{
-                  padding: 60,
-                  textAlign: 'center',
-                  color: 'var(--fg3)',
-                  fontSize: 14,
-                }}
-              >
-                Select a repository to get started.
-              </div>
-            )}
+            {!repo && dashboardApi && <Dashboard api={dashboardApi} />}
             {repo && loading && (
               <div
                 style={{
