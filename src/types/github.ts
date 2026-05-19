@@ -1,3 +1,9 @@
+export interface Repo {
+  full_name: string;
+  description: string | null;
+  private: boolean;
+}
+
 export interface Label {
   name: string;
   color: string;

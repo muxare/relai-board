@@ -1,9 +1,11 @@
-import type { Issue, Label, Milestone } from '../types/github';
+import type { Issue, Label, Milestone, Repo } from '../types/github';
+
+const API_ROOT = 'https://api.github.com';
 
 export class GitHubAPI {
   constructor(
     private token: string,
-    private repo: string,
+    private repo: string = '',
   ) {}
 
   private get headers(): Record<string, string> {
@@ -15,7 +17,29 @@ export class GitHubAPI {
   }
 
   private get base(): string {
-    return `https://api.github.com/repos/${this.repo}`;
+    return `${API_ROOT}/repos/${this.repo}`;
+  }
+
+  async getUserRepos(): Promise<Repo[]> {
+    const res = await fetch(
+      `${API_ROOT}/user/repos?per_page=100&sort=updated`,
+      { headers: this.headers },
+    );
+    if (!res.ok)
+      throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+    return (await res.json()) as Repo[];
+  }
+
+  async searchRepos(query: string): Promise<Repo[]> {
+    const q = encodeURIComponent(`${query} user:@me`);
+    const res = await fetch(
+      `${API_ROOT}/search/repositories?q=${q}&per_page=30`,
+      { headers: this.headers },
+    );
+    if (!res.ok)
+      throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as { items: Repo[] };
+    return data.items;
   }
 
   private async fetchAll<T>(endpoint: string): Promise<T[]> {
@@ -38,9 +62,7 @@ export class GitHubAPI {
   }
 
   async getIssues(): Promise<Issue[]> {
-    return this.fetchAll<Issue>(
-      '/issues?state=all&sort=created&direction=asc',
-    );
+    return this.fetchAll<Issue>('/issues?state=all&sort=created&direction=asc');
   }
 
   async getLabels(): Promise<Label[]> {
