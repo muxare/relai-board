@@ -4,6 +4,26 @@ export interface Repo {
   private: boolean;
 }
 
+export interface Viewer {
+  login: string;
+  avatar_url: string;
+  name: string | null;
+}
+
+export interface SearchIssue {
+  number: number;
+  title: string;
+  state: 'open' | 'closed';
+  html_url: string;
+  repository_url: string;
+  updated_at: string;
+  created_at: string;
+  user: { login: string; avatar_url: string } | null;
+  labels: Label[];
+  pull_request?: { url: string; html_url: string } | null;
+  draft?: boolean;
+}
+
 export interface Label {
   name: string;
   color: string;

@@ -1,4 +1,11 @@
-import type { Issue, Label, Milestone, Repo } from '../types/github';
+import type {
+  Issue,
+  Label,
+  Milestone,
+  Repo,
+  SearchIssue,
+  Viewer,
+} from '../types/github';
 
 const API_ROOT = 'https://api.github.com';
 
@@ -119,6 +126,25 @@ export class GitHubAPI {
     });
     if (!res.ok) throw new Error(`Update failed: ${res.status}`);
     return (await res.json()) as Issue;
+  }
+
+  async getViewer(): Promise<Viewer> {
+    const res = await fetch(`${API_ROOT}/user`, { headers: this.headers });
+    if (!res.ok)
+      throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+    return (await res.json()) as Viewer;
+  }
+
+  async searchIssues(query: string, perPage = 50): Promise<SearchIssue[]> {
+    const q = encodeURIComponent(query);
+    const res = await fetch(
+      `${API_ROOT}/search/issues?q=${q}&per_page=${perPage}&sort=updated`,
+      { headers: this.headers },
+    );
+    if (!res.ok)
+      throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+    const data = (await res.json()) as { items: SearchIssue[] };
+    return data.items;
   }
 
   async verifyAccess(): Promise<unknown> {

@@ -642,3 +642,159 @@ a:hover {
     font-size: 12px;
   }
 }
+
+.dashboard {
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+.dashboard-title {
+  font-size: 22px;
+  font-weight: 700;
+}
+.dashboard-sub {
+  font-size: 12px;
+  color: var(--fg3);
+  margin-top: 2px;
+}
+.dashboard-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--fg3);
+  font-size: 14px;
+}
+.dashboard-empty-title {
+  font-size: 18px;
+  color: var(--fg);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.dashboard-empty-body {
+  max-width: 360px;
+  margin: 0 auto;
+  line-height: 1.5;
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+}
+.widget {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.widget-header {
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg2);
+}
+.widget-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.widget-desc {
+  font-size: 11px;
+  color: var(--fg3);
+  margin-top: 2px;
+  line-height: 1.4;
+}
+.widget-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.widget-fetched {
+  font-size: 11px;
+  color: var(--fg3);
+}
+.widget-body {
+  padding: 4px 0;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.widget-placeholder,
+.widget-error {
+  padding: 16px 14px;
+  font-size: 12px;
+  color: var(--fg3);
+}
+.widget-error {
+  color: var(--red);
+}
+.widget-issue-list {
+  list-style: none;
+}
+.widget-issue-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.widget-issue-row:last-child {
+  border-bottom: none;
+}
+.widget-issue-row:hover {
+  background: var(--bg2);
+}
+.widget-issue-link {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  color: var(--fg);
+  text-decoration: none;
+}
+.widget-issue-link:hover {
+  text-decoration: none;
+}
+.widget-issue-link:hover .widget-issue-title {
+  color: var(--accent);
+}
+.widget-issue-repo {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg3);
+  flex-shrink: 0;
+}
+.widget-issue-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--fg2);
+  flex-shrink: 0;
+}
+.widget-issue-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.widget-issue-age {
+  font-size: 11px;
+  color: var(--fg3);
+  flex-shrink: 0;
+}
+.widget-issue-age.stale {
+  color: var(--orange);
+  font-weight: 600;
+}
