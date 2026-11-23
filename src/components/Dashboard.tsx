@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GitHubAPI } from '../api/github';
 import type { SearchIssue, Viewer } from '../types/github';
 import { usePinnedRepos } from '../storage/usePinnedRepos';
-import { readCache, writeCache } from '../storage/widgetCache';
+import {
+  clearCache,
+  pinnedSetKey,
+  readCache,
+  writeCache,
+} from '../storage/widgetCache';
 import { widgets } from '../widgets/registry';
 import type { Widget, WidgetContext } from '../widgets/types';
 
@@ -11,18 +16,23 @@ interface DashboardProps {
 }
 
 interface WidgetState {
+  /** The pinned set that the rest of the state belongs to. */
+  pinnedSet: string;
   data: SearchIssue[] | null;
   fetchedAt: number | null;
   loading: boolean;
   error: string | null;
 }
 
-const initialState: WidgetState = {
-  data: null,
-  fetchedAt: null,
-  loading: false,
-  error: null,
-};
+function emptyState(pinnedSet: string): WidgetState {
+  return {
+    pinnedSet,
+    data: null,
+    fetchedAt: null,
+    loading: false,
+    error: null,
+  };
+}
 
 function formatRelative(ts: number): string {
   const secs = Math.floor((Date.now() - ts) / 1000);
@@ -34,15 +44,14 @@ function formatRelative(ts: number): string {
 
 export function Dashboard({ api }: DashboardProps) {
   const pinnedRepos = usePinnedRepos();
+  const pinnedSet = pinnedSetKey(pinnedRepos);
   const [viewer, setViewer] = useState<Viewer | null>(null);
   const [viewerError, setViewerError] = useState('');
   const [states, setStates] = useState<Record<string, WidgetState>>(() => {
     const initial: Record<string, WidgetState> = {};
     for (const w of widgets) {
-      const cached = readCache<SearchIssue[]>(w.id);
-      initial[w.id] = cached
-        ? { ...initialState, data: cached.data, fetchedAt: cached.fetchedAt }
-        : { ...initialState };
+      const cached = readCache<SearchIssue[]>(w.id, pinnedSet);
+      initial[w.id] = { ...emptyState(pinnedSet), ...cached };
     }
     return initial;
   });
@@ -62,54 +71,92 @@ export function Dashboard({ api }: DashboardProps) {
     };
   }, [api]);
 
-  const runWidget = useCallback(
-    async (widget: Widget<SearchIssue[]>, ctx: WidgetContext) => {
+  // The context to fetch with right now, or null before the viewer is known and
+  // after unmounting. A row action can finish long after the render it started
+  // in, so its refresh must not use the pinned set of that render.
+  const currentCtx = useRef<WidgetContext | null>(null);
+  useEffect(() => {
+    currentCtx.current = viewer ? { api, viewer, pinnedRepos } : null;
+    return () => {
+      currentCtx.current = null;
+    };
+  }, [api, viewer, pinnedRepos]);
+
+  // Per widget, the number of the newest request. Only that one may touch state
+  // or cache; it also owns `loading`, so a discarded response need not clear it.
+  const latestRequest = useRef<Record<string, number>>({});
+
+  const runWidget = useCallback(async (widget: Widget<SearchIssue[]>) => {
+    const ctx = currentCtx.current;
+    if (!ctx) return;
+    const fetchedSet = pinnedSetKey(ctx.pinnedRepos);
+    const request = (latestRequest.current[widget.id] ?? 0) + 1;
+    latestRequest.current[widget.id] = request;
+    const isCurrent = () =>
+      currentCtx.current !== null &&
+      latestRequest.current[widget.id] === request;
+
+    setStates((s) => {
+      const prev = s[widget.id];
+      const base =
+        prev.pinnedSet === fetchedSet ? prev : emptyState(fetchedSet);
+      return { ...s, [widget.id]: { ...base, loading: true, error: null } };
+    });
+    try {
+      const data = await widget.fetch(ctx);
+      if (!isCurrent()) return;
+      const entry = writeCache(widget.id, fetchedSet, data);
       setStates((s) => ({
         ...s,
-        [widget.id]: { ...s[widget.id], loading: true, error: null },
+        [widget.id]: { ...emptyState(fetchedSet), ...entry },
       }));
-      try {
-        const data = await widget.fetch(ctx);
-        const entry = writeCache(widget.id, data);
+    } catch (e) {
+      if (!isCurrent()) return;
+      setStates((s) => ({
+        ...s,
+        [widget.id]: {
+          ...s[widget.id],
+          loading: false,
+          error: (e as Error).message,
+        },
+      }));
+    }
+  }, []);
+
+  const refreshAll = useCallback(() => {
+    widgets.forEach((w) => runWidget(w));
+  }, [runWidget]);
+
+  // After a row action the cached rows are known to be outdated. Dropping them
+  // first means that they are refetched on the next mount even if the refetch
+  // fails, is cut short by a reload, or cannot start because we are unmounted.
+  const refreshAfterAction = useCallback(
+    async (widget: Widget<SearchIssue[]>) => {
+      clearCache(widget.id);
+      if (currentCtx.current) {
+        await runWidget(widget);
+      } else {
+        // No viewer yet: without data, the effect below fetches once there is.
         setStates((s) => ({
           ...s,
-          [widget.id]: {
-            data,
-            fetchedAt: entry.fetchedAt,
-            loading: false,
-            error: null,
-          },
-        }));
-      } catch (e) {
-        setStates((s) => ({
-          ...s,
-          [widget.id]: {
-            ...s[widget.id],
-            loading: false,
-            error: (e as Error).message,
-          },
+          [widget.id]: emptyState(s[widget.id].pinnedSet),
         }));
       }
     },
-    [],
+    [runWidget],
   );
 
-  const refreshAll = useCallback(() => {
-    if (!viewer) return;
-    const ctx: WidgetContext = { api, viewer, pinnedRepos };
-    widgets.forEach((w) => runWidget(w, ctx));
-  }, [api, viewer, pinnedRepos, runWidget]);
-
-  // Auto-fetch widgets that have no cached data once viewer + pinned are ready.
+  // Auto-fetch widgets that have no data for the current pinned set, once the
+  // viewer is ready and whenever the set changes.
   useEffect(() => {
     if (!viewer) return;
-    const ctx: WidgetContext = { api, viewer, pinnedRepos };
     widgets.forEach((w) => {
-      if (states[w.id].data === null) runWidget(w, ctx);
+      const state = states[w.id];
+      if (state.pinnedSet !== pinnedSet || state.data === null) runWidget(w);
     });
-    // We intentionally depend only on viewer / pinnedRepos identity.
+    // We intentionally depend only on viewer identity / the pinned set.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, pinnedRepos.join(',')]);
+  }, [viewer, pinnedSet]);
 
   if (viewerError) {
     return (
@@ -152,10 +199,11 @@ export function Dashboard({ api }: DashboardProps) {
       </div>
       <div className="dashboard-grid">
         {widgets.map((w) => {
-          const state = states[w.id];
-          const ctx: WidgetContext | null = viewer
-            ? { api, viewer, pinnedRepos }
-            : null;
+          // Never show data from another pinned set as if it were current.
+          const state =
+            states[w.id].pinnedSet === pinnedSet
+              ? states[w.id]
+              : emptyState(pinnedSet);
           const isEmpty =
             state.data !== null && (w.empty ? w.empty(state.data) : false);
           return (
@@ -176,8 +224,8 @@ export function Dashboard({ api }: DashboardProps) {
                   <button
                     type="button"
                     className="btn btn-sm"
-                    disabled={!ctx || state.loading}
-                    onClick={() => ctx && runWidget(w, ctx)}
+                    disabled={!viewer || state.loading}
+                    onClick={() => runWidget(w)}
                   >
                     {state.loading ? '…' : '↻'}
                   </button>
@@ -201,6 +249,7 @@ export function Dashboard({ api }: DashboardProps) {
                     api,
                     viewer: viewer!,
                     pinnedRepos,
+                    refresh: () => refreshAfterAction(w),
                   })}
               </div>
             </section>

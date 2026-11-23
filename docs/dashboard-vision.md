@@ -66,9 +66,18 @@ Shipped in the initial Phase 3 PR:
   - Issues assigned to you → ✕ Close
 - **Plugin-shaped `RowAction<T>`** in `src/widgets/types.ts` —
   `{ id, label, visible?, confirm?, run }` — so adding a new per-row
-  action is one entry in a widget's `actions` array. Confirmations,
-  per-row busy/error state, and refresh on success are handled by
-  `IssueList`.
+  action is one entry in a widget's `actions` array. Confirmations and
+  per-row busy/error state are handled by `IssueList`.
+- **Refresh after a row action**: until 2026-11-23 this document said that
+  `IssueList` handled the refresh on success, but nothing was connected to
+  it and the row stayed until a manual refresh. Since the fix made on
+  2026-11-23, `Dashboard` supplies a `refresh` callback in the context it
+  passes to `render`, and `IssueList` calls it after a successful action.
+  The callback drops that widget's cache entry and refetches that widget
+  only, and the row's button stays busy until the refetch has finished.
+  A failed action does not refetch. It has not been verified how quickly
+  GitHub's search reflects a change, so the refetch might still return a
+  row that has just been handled.
 - **Workflow dispatch launcher** (`src/components/Workflows.tsx`): pick
   any `workflow_dispatch` workflow across pinned repos, choose a ref,
   fill declared inputs (parsed from the workflow YAML, including

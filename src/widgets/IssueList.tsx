@@ -1,14 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SearchIssue } from '../types/github';
 import { repoFromUrl } from './types';
-import type { RowAction, WidgetContext } from './types';
+import type { RowAction, WidgetRenderContext } from './types';
 
 interface IssueListProps {
   items: SearchIssue[];
   highlightStaleDays?: number;
   actions?: RowAction<SearchIssue>[];
-  ctx?: WidgetContext;
-  onAfterAction?: () => void;
+  ctx?: WidgetRenderContext;
 }
 
 function daysSince(iso: string): number {
@@ -20,10 +19,21 @@ export function IssueList({
   highlightStaleDays,
   actions,
   ctx,
-  onAfterAction,
 }: IssueListProps) {
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [error, setError] = useState<Record<string, string>>({});
+
+  // Forget errors of rows that are gone, so a row that returns starts clean.
+  useEffect(() => {
+    setError((prev) => {
+      const kept = Object.entries(prev).filter(([k]) =>
+        items.some((it) => k.startsWith(`${it.html_url}:`)),
+      );
+      return kept.length === Object.keys(prev).length
+        ? prev
+        : Object.fromEntries(kept);
+    });
+  }, [items]);
 
   async function runAction(action: RowAction<SearchIssue>, row: SearchIssue) {
     if (!ctx) return;
@@ -33,7 +43,9 @@ export function IssueList({
     setError((e) => ({ ...e, [key]: '' }));
     try {
       await action.run(row, ctx);
-      onAfterAction?.();
+      // Stay busy until the refetch is done, so that the action cannot be fired
+      // again on a row that is about to disappear.
+      await ctx.refresh();
     } catch (e) {
       setError((s) => ({ ...s, [key]: (e as Error).message }));
     } finally {

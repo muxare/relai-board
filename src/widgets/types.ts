@@ -8,6 +8,12 @@ export interface WidgetContext {
   pinnedRepos: string[];
 }
 
+/** What a widget can use while rendering; `fetch` must not trigger a refresh. */
+export interface WidgetRenderContext extends WidgetContext {
+  /** Refetches this widget. Resolves when done and never rejects. */
+  refresh: () => Promise<void>;
+}
+
 export interface RowAction<TRow> {
   id: string;
   label: string;
@@ -24,7 +30,7 @@ export interface Widget<TData> {
   title: string;
   description?: string;
   fetch: (ctx: WidgetContext) => Promise<TData>;
-  render: (data: TData, ctx: WidgetContext) => ReactNode;
+  render: (data: TData, ctx: WidgetRenderContext) => ReactNode;
   empty?: (data: TData) => boolean;
 }
 
