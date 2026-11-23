@@ -27,3 +27,6 @@ The allowlist is committed rather than kept in the browser because the runner ca
 read the pinned repos, which live in localStorage. Its format is defined by
 [`nightshift/repos.schema.json`](nightshift/repos.schema.json), and `npm run test`
 checks the file against that schema.
+
+Every proposal, whether it comes from a generator or a human, follows
+[`nightshift/PROPOSAL_TEMPLATE.md`](nightshift/PROPOSAL_TEMPLATE.md).
