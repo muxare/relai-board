@@ -1,0 +1,9 @@
+{
+  "repos": [
+    {
+      "name": "muxare/relai-board",
+      "maxIssuesPerNight": 2,
+      "testCommand": "npm test"
+    }
+  ]
+}
