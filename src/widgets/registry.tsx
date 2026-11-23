@@ -1,6 +1,6 @@
 import type { SearchIssue } from '../types/github';
 import { IssueList } from './IssueList';
-import type { Widget } from './types';
+import { repoFromUrl, type RowAction, type Widget } from './types';
 
 function repoQuery(repos: string[]): string {
   return repos.map((r) => `repo:${r}`).join(' ');
@@ -9,6 +9,39 @@ function repoQuery(repos: string[]): string {
 function empty(items: SearchIssue[]): boolean {
   return items.length === 0;
 }
+
+const approve: RowAction<SearchIssue> = {
+  id: 'approve',
+  label: '✓ Approve',
+  title: 'Approve this PR',
+  visible: (row) => !!row.pull_request && row.state === 'open',
+  confirm: (row) =>
+    `Approve #${row.number} in ${repoFromUrl(row.repository_url)}?`,
+  run: (row, ctx) =>
+    ctx.api.approvePr(repoFromUrl(row.repository_url), row.number),
+};
+
+const mergePr: RowAction<SearchIssue> = {
+  id: 'merge',
+  label: '⏷ Merge',
+  title: 'Squash-merge this PR',
+  visible: (row) => !!row.pull_request && row.state === 'open' && !row.draft,
+  confirm: (row) =>
+    `Squash-merge #${row.number} in ${repoFromUrl(row.repository_url)}?`,
+  run: (row, ctx) =>
+    ctx.api.mergePr(repoFromUrl(row.repository_url), row.number, 'squash'),
+};
+
+const closeIssue: RowAction<SearchIssue> = {
+  id: 'close',
+  label: '✕ Close',
+  title: 'Close this issue',
+  visible: (row) => !row.pull_request && row.state === 'open',
+  confirm: (row) =>
+    `Close #${row.number} in ${repoFromUrl(row.repository_url)}?`,
+  run: (row, ctx) =>
+    ctx.api.closeIssue(repoFromUrl(row.repository_url), row.number),
+};
 
 const prsAwaitingReview: Widget<SearchIssue[]> = {
   id: 'prs-awaiting-review',
@@ -21,7 +54,14 @@ const prsAwaitingReview: Widget<SearchIssue[]> = {
       `is:open is:pr review-requested:@me ${repoQuery(pinnedRepos)}`,
     );
   },
-  render: (items) => <IssueList items={items} highlightStaleDays={3} />,
+  render: (items, ctx) => (
+    <IssueList
+      items={items}
+      highlightStaleDays={3}
+      actions={[approve]}
+      ctx={ctx}
+    />
+  ),
   empty,
 };
 
@@ -36,7 +76,14 @@ const yourOpenPrs: Widget<SearchIssue[]> = {
       `is:open is:pr author:${viewer.login} ${repoQuery(pinnedRepos)}`,
     );
   },
-  render: (items) => <IssueList items={items} highlightStaleDays={7} />,
+  render: (items, ctx) => (
+    <IssueList
+      items={items}
+      highlightStaleDays={7}
+      actions={[mergePr]}
+      ctx={ctx}
+    />
+  ),
   empty,
 };
 
@@ -50,7 +97,9 @@ const issuesAssignedToYou: Widget<SearchIssue[]> = {
       `is:open is:issue assignee:${viewer.login} ${repoQuery(pinnedRepos)}`,
     );
   },
-  render: (items) => <IssueList items={items} />,
+  render: (items, ctx) => (
+    <IssueList items={items} actions={[closeIssue]} ctx={ctx} />
+  ),
   empty,
 };
 

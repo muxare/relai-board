@@ -15,7 +15,8 @@ export function ConnectScreen({ onConnect, oauthToken }: ConnectScreenProps) {
   }, [oauthToken, onConnect]);
 
   const handleOAuthLogin = () => {
-    const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&scope=repo`;
+    const scope = encodeURIComponent('repo workflow');
+    const url = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${encodeURIComponent(OAUTH_REDIRECT_URI)}&scope=${scope}`;
     window.location.href = url;
   };
 
@@ -87,8 +88,9 @@ export function ConnectScreen({ onConnect, oauthToken }: ConnectScreenProps) {
             placeholder="ghp_..."
           />
           <small>
-            Needs Issues read/write scope. Stored in session only — cleared when
-            you close the tab.
+            Needs <code>repo</code> + <code>workflow</code> scopes for actions
+            (merge PRs, dispatch workflows). Stored in session only — cleared
+            when you close the tab.
           </small>
         </div>
 

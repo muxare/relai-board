@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { TreeNode as TreeNodeType } from './types/github';
-import { GitHubAPI } from './api/github';
+import { GitHubAPI, isAlreadyExists } from './api/github';
 import { getLabelStyle } from './labels/styles';
 import { parseIssuesToTree } from './parse/tree';
 import { parseMarkdown } from './parse/markdown';
@@ -11,6 +11,7 @@ import { PushModal } from './components/PushModal';
 import { RepoSelector, pushRecentRepo } from './components/RepoSelector';
 import { PinnedSidebar } from './components/PinnedSidebar';
 import { Dashboard } from './components/Dashboard';
+import { Workflows } from './components/Workflows';
 import { OAUTH_WORKER_URL } from './config';
 
 const SESSION_KEY = 'relai-board:session';
@@ -21,6 +22,9 @@ function App() {
   const [tree, setTree] = useState<TreeNodeType[]>([]);
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState('board');
+  const [homeView, setHomeView] = useState<'dashboard' | 'workflows'>(
+    'dashboard',
+  );
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [editItem, setEditItem] = useState<TreeNodeType | null>(null);
   const [showPush, setShowPush] = useState(false);
@@ -133,6 +137,7 @@ function App() {
     const parsed = parseMarkdown(markdown);
     async function pushAll() {
       const api = apiRef.current!;
+      const failures: string[] = [];
       setLoading(true);
       // Ensure labels exist
       const allLabels = new Set<string>();
@@ -147,8 +152,12 @@ function App() {
         const s = getLabelStyle(label);
         try {
           await api.createLabel(label, s.ghColor);
-        } catch {
-          /* label may already exist */
+        } catch (err) {
+          if (isAlreadyExists(err)) continue;
+          console.error('Failed label:', label, err);
+          failures.push(
+            `Could not create label "${label}": ${(err as Error).message}`,
+          );
         }
       }
       // Ensure milestones
@@ -166,8 +175,13 @@ function App() {
           try {
             const data = await api.createMilestone(ms);
             msMap[ms] = data.number;
-          } catch {
-            /* milestone may already exist */
+          } catch (err) {
+            // Reported even when it already exists: without its number the
+            // issues below cannot be assigned to it.
+            console.error('Failed milestone:', ms, err);
+            failures.push(
+              `Could not create milestone "${ms}", so it was not set on its issues: ${(err as Error).message}`,
+            );
           }
         }
       }
@@ -203,6 +217,9 @@ function App() {
       await createTree(parsed, null);
       setMarkdown('');
       await loadBoard(api);
+      // After loadBoard, which clears the error and may set its own
+      if (failures.length > 0)
+        setError((prev) => [prev, ...failures].filter(Boolean).join('\n'));
     }
     pushAll();
   };
@@ -285,6 +302,22 @@ function App() {
             ◀ Dashboard
           </button>
         )}
+        {!repo && (
+          <div className="tabs" style={{ border: 'none', padding: 0 }}>
+            <button
+              className={`tab ${homeView === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setHomeView('dashboard')}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`tab ${homeView === 'workflows' ? 'active' : ''}`}
+              onClick={() => setHomeView('workflows')}
+            >
+              Workflows
+            </button>
+          </div>
+        )}
         <RepoSelector
           currentRepo={repo}
           token={token}
@@ -346,7 +379,12 @@ function App() {
           )}
           {/* Main content */}
           <div className="main">
-            {!repo && dashboardApi && <Dashboard api={dashboardApi} />}
+            {!repo && dashboardApi && homeView === 'dashboard' && (
+              <Dashboard api={dashboardApi} />
+            )}
+            {!repo && dashboardApi && homeView === 'workflows' && (
+              <Workflows api={dashboardApi} />
+            )}
             {repo && loading && (
               <div
                 style={{
@@ -359,7 +397,14 @@ function App() {
               </div>
             )}
             {error && (
-              <div style={{ padding: 20, color: 'var(--red)', fontSize: 13 }}>
+              <div
+                style={{
+                  padding: 20,
+                  color: 'var(--red)',
+                  fontSize: 13,
+                  whiteSpace: 'pre-line',
+                }}
+              >
                 {error}
               </div>
             )}

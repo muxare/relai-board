@@ -35,6 +35,22 @@ export interface Milestone {
   state: 'open' | 'closed';
 }
 
+export interface WorkflowSummary {
+  id: number;
+  name: string;
+  path: string;
+  state: string;
+}
+
+export interface WorkflowInput {
+  name: string;
+  description?: string;
+  required?: boolean;
+  default?: string;
+  type?: 'string' | 'boolean' | 'choice' | 'environment' | 'number';
+  options?: string[];
+}
+
 export interface Issue {
   number: number;
   title: string;

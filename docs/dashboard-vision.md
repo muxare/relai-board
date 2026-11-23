@@ -56,15 +56,46 @@ Deferred follow-ups (still part of Phase 2 scope):
 
 ## Phase 3 — Triggerable actions
 
-Move from "view" to "do." Each row gets contextual actions:
+Move from "view" to "do." Each row gets contextual actions.
 
-- Re-run failed workflow, approve / merge PR, request reviewers, add
-  labels, close stale issues.
-- Bulk actions across repos: "apply label X to all matching issues,"
-  "enable Dependabot," "sync branch protection from a template repo."
-- **Workflow dispatch launcher**: pick any `workflow_dispatch` workflow
-  across pinned repos and fire it with inputs. Turns the dashboard into a
+Shipped in the initial Phase 3 PR:
+
+- **Row actions** on existing dashboard widgets:
+  - PRs awaiting review → ✓ Approve
+  - Your open PRs → ⏷ Squash-merge
+  - Issues assigned to you → ✕ Close
+- **Plugin-shaped `RowAction<T>`** in `src/widgets/types.ts` —
+  `{ id, label, visible?, confirm?, run }` — so adding a new per-row
+  action is one entry in a widget's `actions` array. Confirmations and
+  per-row busy/error state are handled by `IssueList`.
+- **Refresh after a row action**: until 2026-11-23 this document said that
+  `IssueList` handled the refresh on success, but nothing was connected to
+  it and the row stayed until a manual refresh. Since the fix made on
+  2026-11-23, `Dashboard` supplies a `refresh` callback in the context it
+  passes to `render`, and `IssueList` calls it after a successful action.
+  The callback drops that widget's cache entry and refetches that widget
+  only, and the row's button stays busy until the refetch has finished.
+  A failed action does not refetch. It has not been verified how quickly
+  GitHub's search reflects a change, so the refetch might still return a
+  row that has just been handled.
+- **Workflow dispatch launcher** (`src/components/Workflows.tsx`): pick
+  any `workflow_dispatch` workflow across pinned repos, choose a ref,
+  fill declared inputs (parsed from the workflow YAML, including
+  `choice` / `boolean` types), and fire it. Turns the dashboard into a
   personal ops console.
+- **Wider OAuth scope**: bumped from `repo` to `repo workflow` to allow
+  workflow dispatch. PR merges / issue closes already fit inside `repo`.
+- **Top-bar Dashboard / Workflows switcher** when no repo is selected.
+
+Deferred follow-ups (still part of Phase 3 scope):
+
+- More row actions: re-run failed workflow runs, request reviewers, add
+  labels via picker.
+- **Bulk actions across repos**: "apply label X to all matching issues,"
+  "enable Dependabot," "sync branch protection from a template repo."
+- Workflow inputs use a tiny hand-rolled YAML scanner — fine for the
+  flat shapes Actions allows, but swap for a real YAML parser if we
+  start consuming richer workflow files (composite actions, anchors).
 
 ## Phase 4 — Saved views & automations
 
