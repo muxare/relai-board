@@ -10,6 +10,26 @@ import type {
 
 const API_ROOT = 'https://api.github.com';
 
+export class GitHubError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(message);
+    this.name = 'GitHubError';
+  }
+}
+
+// GitHub also answers 422 for invalid input, so the status alone is not enough.
+export function isAlreadyExists(err: unknown): boolean {
+  return (
+    err instanceof GitHubError &&
+    err.status === 422 &&
+    /"code":\s*"already_exists"/.test(err.body)
+  );
+}
+
 export class GitHubAPI {
   constructor(
     private token: string,
@@ -82,19 +102,16 @@ export class GitHubAPI {
   }
 
   async createLabel(name: string, color: string): Promise<Label> {
-    const res = await fetch(`${this.base}/labels`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify({ name, color }),
+    const res = await this.request('POST', `/repos/${this.repo}/labels`, {
+      name,
+      color,
     });
     return (await res.json()) as Label;
   }
 
   async createMilestone(title: string): Promise<Milestone> {
-    const res = await fetch(`${this.base}/milestones`, {
-      method: 'POST',
-      headers: this.headers,
-      body: JSON.stringify({ title }),
+    const res = await this.request('POST', `/repos/${this.repo}/milestones`, {
+      title,
     });
     return (await res.json()) as Milestone;
   }
@@ -162,7 +179,11 @@ export class GitHubAPI {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`GitHub ${method} ${path} ${res.status}: ${text}`);
+      throw new GitHubError(
+        `GitHub ${method} ${path} ${res.status}: ${text}`,
+        res.status,
+        text,
+      );
     }
     return res;
   }
